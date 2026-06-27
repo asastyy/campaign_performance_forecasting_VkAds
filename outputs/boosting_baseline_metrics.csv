@@ -1,0 +1,6 @@
+model,train_rows,features,calibration_metric_percent,pretest_metric_percent,final_holdout_metric_percent
+replay_blend_locked,0,0,8.03,8.17,9.54
+boosting_with_replay_features_trained_on_pretest,643,190,6.61,6.92,10.94
+boosting_with_replay_features_trained_on_development,389,190,10.24,9.82,11.83
+boosting_static_history_trained_on_pretest,643,64,16.33,19.08,30.89
+boosting_static_history_trained_on_development,389,64,26.09,27.67,35.09

@@ -1,0 +1,2 @@
+protocol,selected_candidate,test_start,rows,metric_percent,prediction_sha256
+purged_development_calibration_locked_final_holdout,scalar_d8_w5_weights_0.05_0.40_0.55,1257,201,9.54,e17b96a74a8e795dda76610abb8239c666ad1f7e18ac1b4e02c801169001f008

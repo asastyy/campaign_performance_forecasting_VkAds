@@ -1,0 +1,31 @@
+{
+  "protocol": "purged_development_calibration_locked_final_holdout",
+  "model_family": "scalar_past_only_blend",
+  "forecast_cutoff": 747,
+  "history_end": 746,
+  "calibration_start": 1107,
+  "test_start": 1257,
+  "development_rows": 389,
+  "calibration_rows": 121,
+  "pretest_rows": 643,
+  "final_holdout_rows": 201,
+  "selected_candidate": "scalar_d8_w5_weights_0.05_0.40_0.55",
+  "daily_lags": 8,
+  "weekly_lags": 5,
+  "monthly_weight": 0.05,
+  "daily_weight": 0.4,
+  "weekly_weight": 0.55,
+  "target_configs": null,
+  "use_bias": false,
+  "pretest_bias": {
+    "at_least_one": 0.0,
+    "at_least_two": 0.0,
+    "at_least_three": 0.0
+  },
+  "selection_metric": "pretest_metric_percent",
+  "calibration_metric_percent": 8.03,
+  "pretest_metric_percent": 8.17,
+  "prediction_file": "strict_locked_predictions.tsv",
+  "prediction_sha256": "e17b96a74a8e795dda76610abb8239c666ad1f7e18ac1b4e02c801169001f008",
+  "final_holdout_metric": null
+}

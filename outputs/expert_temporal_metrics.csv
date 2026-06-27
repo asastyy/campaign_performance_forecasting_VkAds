@@ -1,0 +1,5 @@
+model,metric_percent,rows
+month_template_shift_744_temporal_rows,11.77,605
+month_template_rolling_per_target_calibration,11.55,605
+hgb_temporal_user_embedding_features,12.78,605
+mlp_multitask_temporal_user_embedding_features,38.12,605

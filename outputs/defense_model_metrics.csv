@@ -1,0 +1,6 @@
+model,rows,final_holdout_metric_percent
+Final decomposed replay,201,9.544169378109935
+Boosting + replay features,201,10.943786376852582
+Monthly replay,201,11.692866616352093
+Static/history boosting,201,30.893270160591
+Zero baseline,201,202.9610768112658
