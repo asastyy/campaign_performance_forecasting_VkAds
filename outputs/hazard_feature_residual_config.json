@@ -1,0 +1,80 @@
+{
+  "protocol": "development_selected_pretest_refit_locked_final_evaluation",
+  "hazard_configs": {
+    "tight_hour": {
+      "rate_smoothing_weeks": 0.5,
+      "publisher_smoothing": 25.0,
+      "hour_smoothing": 100.0,
+      "cpm_smoothing": 1000.0,
+      "session_power": 0.5
+    },
+    "tight_pub": {
+      "rate_smoothing_weeks": 0.5,
+      "publisher_smoothing": 25.0,
+      "hour_smoothing": 25.0,
+      "cpm_smoothing": 0.0,
+      "session_power": 0.5
+    },
+    "smooth": {
+      "rate_smoothing_weeks": 1.5,
+      "publisher_smoothing": 100.0,
+      "hour_smoothing": 100.0,
+      "cpm_smoothing": 1000.0,
+      "session_power": 0.5
+    },
+    "session_strict": {
+      "rate_smoothing_weeks": 3.0,
+      "publisher_smoothing": 100.0,
+      "hour_smoothing": 100.0,
+      "cpm_smoothing": 1000.0,
+      "session_power": 1.0
+    }
+  },
+  "selected_ridge_config": {
+    "feature_set": "all",
+    "alpha": 300.0,
+    "correction_weight": 0.08,
+    "uncertainty_weight": 0.0,
+    "correction_clip": 0.4
+  },
+  "selected_targetwise_configs": {
+    "at_least_one": {
+      "feature_set": "static_replay",
+      "alpha": 100.0,
+      "correction_weight": 0.2,
+      "uncertainty_weight": 2.0,
+      "correction_clip": 0.08
+    },
+    "at_least_two": {
+      "feature_set": "all",
+      "alpha": 100.0,
+      "correction_weight": 0.08,
+      "uncertainty_weight": 0.0,
+      "correction_clip": 0.4
+    },
+    "at_least_three": {
+      "feature_set": "all",
+      "alpha": 100.0,
+      "correction_weight": 0.12,
+      "uncertainty_weight": 0.0,
+      "correction_clip": 0.4
+    }
+  },
+  "metrics": [
+    {
+      "model": "base_decomposed_replay",
+      "selection_metric_percent": 7.96,
+      "final_holdout_metric_percent": 9.54
+    },
+    {
+      "model": "hazard_feature_ridge_residual",
+      "selection_metric_percent": 7.95,
+      "final_holdout_metric_percent": 9.47
+    },
+    {
+      "model": "hazard_feature_targetwise_ridge_residual",
+      "selection_metric_percent": NaN,
+      "final_holdout_metric_percent": 9.48
+    }
+  ]
+}

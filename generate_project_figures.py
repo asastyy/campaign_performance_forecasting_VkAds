@@ -145,23 +145,27 @@ def plot_temporal_split() -> None:
 
 def plot_model_comparison() -> None:
     boosting = pd.read_csv(OUTPUT_DIR / "boosting_baseline_metrics.csv")
+    temporal_metrics_path = OUTPUT_DIR / "temporal_weighted_residual_metrics.csv"
+    temporal_metrics = pd.read_csv(temporal_metrics_path) if temporal_metrics_path.exists() else None
     final_rows = [
         ("Monthly baseline", 11.70),
         ("Boosting + replay features", 10.94),
-        ("Final decomposed replay", 9.54),
+        ("Base decomposed replay", 9.54),
+        ("Target-wise Ridge residual", 9.46),
+        ("Temporal-weighted target-wise Ridge", 9.29),
         ("Static/history boosting", 30.89),
     ]
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     labels, values = zip(*final_rows)
-    colors = ["#94A3B8", "#60A5FA", "#10B981", "#F87171"]
-    axes[0].bar(labels, values, color=colors)
+    colors = ["#94A3B8", "#60A5FA", "#10B981", "#34D399", "#059669", "#F87171"]
+    axes[0].barh(labels, values, color=colors)
     axes[0].set_title("Сравнение моделей на locked final holdout")
-    axes[0].set_ylabel("Метрика, %")
-    axes[0].tick_params(axis="x", rotation=20)
-    axes[0].grid(axis="y", alpha=0.25)
+    axes[0].set_xlabel("Метрика, %")
+    axes[0].invert_yaxis()
+    axes[0].grid(axis="x", alpha=0.25)
     for idx, value in enumerate(values):
-        axes[0].text(idx, value + 0.35, f"{value:.2f}%", ha="center", fontsize=9)
+        axes[0].text(value + 0.25, idx, f"{value:.2f}%", va="center", fontsize=9)
 
     selected = boosting[
         boosting["model"].isin(
@@ -179,19 +183,29 @@ def plot_model_comparison() -> None:
             "boosting_static_history_trained_on_pretest": "Static boosting",
         }
     )
-    x = np.arange(len(selected))
-    width = 0.25
-    for offset, col, name in [
-        (-width, "calibration_metric_percent", "Calibration"),
-        (0, "pretest_metric_percent", "Pretest"),
-        (width, "final_holdout_metric_percent", "Final"),
-    ]:
-        axes[1].bar(x + offset, selected[col], width=width, label=name)
-    axes[1].set_xticks(x, selected["model"], rotation=15)
-    axes[1].set_title("Устойчивость метрики между сплитами")
+    residual_rows = [
+        ("Base replay", 9.54),
+        ("Segment residual", 9.51),
+        ("Ridge residual", 9.47),
+        ("Target-wise Ridge", 9.46),
+    ]
+    if temporal_metrics is not None:
+        temporal_value = float(
+            temporal_metrics.loc[
+                temporal_metrics["model"] == "temporal_weighted_targetwise_ridge_residual",
+                "final_holdout_metric_percent",
+            ].iloc[0]
+        )
+        residual_rows.append(("Temporal-weighted target-wise", temporal_value))
+    labels, values = zip(*residual_rows)
+    axes[1].plot(labels, values, marker="o", linewidth=2.2, color="#2563EB")
+    axes[1].scatter(labels[-1], values[-1], s=110, color="#059669", zorder=3)
+    for idx, value in enumerate(values):
+        axes[1].text(idx, value + 0.025, f"{value:.2f}%", ha="center", fontsize=9)
+    axes[1].set_xticks(range(len(labels)), labels, rotation=15, ha="right")
+    axes[1].set_title("Усиление replay через residual calibration")
     axes[1].set_ylabel("Метрика, %")
     axes[1].grid(axis="y", alpha=0.25)
-    axes[1].legend(frameon=False)
 
     savefig(FIGURE_DIR / "04_model_comparison.png")
 
@@ -234,7 +248,12 @@ def plot_ablation() -> None:
 
 def plot_prediction_quality(answers: pd.DataFrame) -> None:
     zones = pd.read_csv(OUTPUT_DIR / "strict_temporal_zones.csv")
-    prediction = pd.read_csv(OUTPUT_DIR / "strict_locked_predictions.tsv", sep="\t")
+    prediction_path = OUTPUT_DIR / "validation_predictions_temporal_weighted_targetwise_ridge.tsv"
+    title_suffix = "temporal-weighted target-wise residual"
+    if not prediction_path.exists():
+        prediction_path = OUTPUT_DIR / "strict_locked_predictions.tsv"
+        title_suffix = "base replay"
+    prediction = pd.read_csv(prediction_path, sep="\t")
     final_idx = zones.loc[zones["zone"] == "final_holdout", "row_position"].to_numpy()
     actual = answers.iloc[final_idx].reset_index(drop=True)
     predicted = prediction.iloc[final_idx].reset_index(drop=True)
@@ -248,7 +267,11 @@ def plot_prediction_quality(answers: pd.DataFrame) -> None:
         ax.set_xlabel("Actual")
         ax.set_ylabel("Predicted")
         ax.grid(alpha=0.25)
-    fig.suptitle("Predicted vs actual на locked final holdout", fontsize=15, fontweight="bold")
+    fig.suptitle(
+        f"Predicted vs actual на locked final holdout: {title_suffix}",
+        fontsize=15,
+        fontweight="bold",
+    )
     savefig(FIGURE_DIR / "06_predicted_vs_actual_final_holdout.png")
 
 
@@ -327,7 +350,7 @@ def write_figure_readme() -> None:
 - `03_temporal_split.png` — схема temporal split без использования будущих данных.
 - `04_model_comparison.png` — сравнение финальной модели с ML-baselines.
 - `05_replay_ablation.png` — абляция monthly/daily/weekly replay-компонент.
-- `06_predicted_vs_actual_final_holdout.png` — качество прогноза на locked final holdout.
+- `06_predicted_vs_actual_final_holdout.png` — качество финальной temporal-weighted модели на locked final holdout.
 - `07_user_representations_pca.png` — PCA-проекция пользовательских поведенческих представлений.
 
 Файл `07_user_representations_pca.png` корректно называть именно user representations, а не pretrained embeddings: представления построены из агрегатов истории показов.
@@ -351,4 +374,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

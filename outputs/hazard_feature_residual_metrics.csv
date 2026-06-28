@@ -1,0 +1,4 @@
+model,selection_metric_percent,final_holdout_metric_percent
+base_decomposed_replay,7.96,9.54
+hazard_feature_ridge_residual,7.95,9.47
+hazard_feature_targetwise_ridge_residual,,9.48

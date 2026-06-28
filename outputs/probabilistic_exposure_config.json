@@ -1,0 +1,24 @@
+{
+  "protocol": "development_bias_selection_refit_pretest_locked_final_evaluation",
+  "selected_config": {
+    "rate_smoothing_weeks": 0.5,
+    "publisher_smoothing": 25.0,
+    "hour_smoothing": 25.0,
+    "cpm_smoothing": 0.0,
+    "session_power": 0.5,
+    "hazard_blend_weight": 0.0
+  },
+  "metrics": [
+    {
+      "model": "base_decomposed_replay",
+      "selection_metric_percent": 7.96,
+      "final_holdout_metric_percent": 9.54
+    },
+    {
+      "model": "probabilistic_exposure_simulator_blend",
+      "selection_metric_percent": 7.96,
+      "final_holdout_metric_percent": 9.54
+    }
+  ],
+  "interpretation": "A user-level hazard simulator was fitted only on pre-forecast history. It models user activity by publisher/hour-of-week, empirical CPM win curves and a Poisson session-level exposure aggregation."
+}

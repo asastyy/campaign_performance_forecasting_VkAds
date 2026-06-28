@@ -1,0 +1,4 @@
+model,selection_metric_percent,selection_metric_raw_percent,final_holdout_metric_percent,final_holdout_metric_raw_percent
+base_decomposed_replay,7.96,7.959060407911922,9.54,9.544202623410914
+temporal_weighted_ridge_residual,7.93,7.930945193077266,9.47,9.46550001623081
+temporal_weighted_targetwise_ridge_residual,,,9.3,9.298834709643877

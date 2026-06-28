@@ -1,0 +1,40 @@
+{
+  "protocol": "selection_only_model_combination_then_locked_final_evaluation",
+  "selected_combination": {
+    "at_least_one": {
+      "name": "targetwise_0.50+hazard_targetwise_0.50",
+      "source_a": "targetwise",
+      "source_b": "hazard_targetwise",
+      "weight_b": 0.5
+    },
+    "at_least_two": {
+      "name": "targetwise",
+      "source_a": "targetwise",
+      "source_b": null,
+      "weight_b": 0.0
+    },
+    "at_least_three": {
+      "name": "hazard_targetwise",
+      "source_a": "hazard_targetwise",
+      "source_b": null,
+      "weight_b": 0.0
+    }
+  },
+  "metrics": [
+    {
+      "model": "base_decomposed_replay",
+      "selection_metric_percent": 7.96,
+      "selection_metric_raw_percent": 7.959060407911922,
+      "final_holdout_metric_percent": 9.54,
+      "final_holdout_metric_raw_percent": 9.544202623410914
+    },
+    {
+      "model": "selection_model_blend",
+      "selection_metric_percent": 7.91,
+      "selection_metric_raw_percent": 7.914859077984282,
+      "final_holdout_metric_percent": 9.46,
+      "final_holdout_metric_raw_percent": 9.462033999320152
+    }
+  ],
+  "note": "The final holdout is not used for choosing target sources or blend weights. The selector searches only over models already selected on pre-final splits."
+}

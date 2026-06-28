@@ -1,0 +1,66 @@
+{
+  "protocol": "recency_weighted_residual_selection_then_locked_final_evaluation",
+  "selection_reference_hour": 1107,
+  "final_reference_hour": 1257,
+  "selected_config": {
+    "feature_source": "standard",
+    "feature_set": "all",
+    "alpha": 1500.0,
+    "correction_weight": 0.22,
+    "uncertainty_weight": 0.0,
+    "correction_clip": 0.15,
+    "half_life_hours": 72.0
+  },
+  "selected_targetwise_configs": {
+    "at_least_one": {
+      "feature_source": "standard",
+      "feature_set": "no_decomp",
+      "alpha": 300.0,
+      "correction_weight": 0.35,
+      "uncertainty_weight": 0.0,
+      "correction_clip": 0.25,
+      "half_life_hours": 72.0
+    },
+    "at_least_two": {
+      "feature_source": "standard",
+      "feature_set": "all",
+      "alpha": 50.0,
+      "correction_weight": 0.2,
+      "uncertainty_weight": 0.0,
+      "correction_clip": 0.08,
+      "half_life_hours": "inf"
+    },
+    "at_least_three": {
+      "feature_source": "hazard",
+      "feature_set": "all",
+      "alpha": 50.0,
+      "correction_weight": 0.1,
+      "uncertainty_weight": 0.0,
+      "correction_clip": 0.6,
+      "half_life_hours": "inf"
+    }
+  },
+  "metrics": [
+    {
+      "model": "base_decomposed_replay",
+      "selection_metric_percent": 7.96,
+      "selection_metric_raw_percent": 7.959060407911922,
+      "final_holdout_metric_percent": 9.54,
+      "final_holdout_metric_raw_percent": 9.544202623410914
+    },
+    {
+      "model": "temporal_weighted_ridge_residual",
+      "selection_metric_percent": 7.93,
+      "selection_metric_raw_percent": 7.930945193077266,
+      "final_holdout_metric_percent": 9.47,
+      "final_holdout_metric_raw_percent": 9.46550001623081
+    },
+    {
+      "model": "temporal_weighted_targetwise_ridge_residual",
+      "selection_metric_percent": NaN,
+      "selection_metric_raw_percent": NaN,
+      "final_holdout_metric_percent": 9.29,
+      "final_holdout_metric_raw_percent": 9.289323676530126
+    }
+  ]
+}

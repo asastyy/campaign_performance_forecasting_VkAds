@@ -1,0 +1,39 @@
+{
+  "protocol": "selection_only_blend_with_temporal_weighted_sources",
+  "selected_combination": {
+    "at_least_one": {
+      "name": "temporal_targetwise",
+      "source_a": "temporal_targetwise",
+      "source_b": null,
+      "weight_b": 0.0
+    },
+    "at_least_two": {
+      "name": "temporal_targetwise",
+      "source_a": "temporal_targetwise",
+      "source_b": null,
+      "weight_b": 0.0
+    },
+    "at_least_three": {
+      "name": "temporal_targetwise_0.65+hazard_targetwise_0.35",
+      "source_a": "temporal_targetwise",
+      "source_b": "hazard_targetwise",
+      "weight_b": 0.35
+    }
+  },
+  "metrics": [
+    {
+      "model": "base_decomposed_replay",
+      "selection_metric_percent": 7.96,
+      "selection_metric_raw_percent": 7.959060407911922,
+      "final_holdout_metric_percent": 9.54,
+      "final_holdout_metric_raw_percent": 9.544202623410914
+    },
+    {
+      "model": "temporal_selection_blend",
+      "selection_metric_percent": 7.85,
+      "selection_metric_raw_percent": 7.853683713012294,
+      "final_holdout_metric_percent": 9.29,
+      "final_holdout_metric_raw_percent": 9.289694395833404
+    }
+  ]
+}
