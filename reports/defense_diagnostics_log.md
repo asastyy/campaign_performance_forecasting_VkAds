@@ -1,7 +1,6 @@
 # Defense Diagnostics Log
 
 Все diagnostics ниже являются post-hoc анализом зафиксированных predictions на locked final holdout.
-Они не используются для подбора финальной модели и поэтому не создают data leakage.
 
 ## Model comparison on final holdout
 
