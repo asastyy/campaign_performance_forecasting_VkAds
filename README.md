@@ -1,151 +1,409 @@
-# VK Ads leak-free reach/frequency forecasting
+# VK Ads Reach & Frequency Forecasting
 
-Код курсовой работы по прогнозированию долей пользователей с 1+, 2+ и 3+ показами объявления.
+Leak-free forecasting pipeline for predicting future advertising reach and frequency in an auction-based ad system.
 
-## Что входит в репозиторий
+The project predicts the share of a campaign audience that will see an ad at least once, twice, and three times:
 
-- Python-код модели и экспериментов;
-- таблицы метрик, предсказаний и model lock;
-- готовые графики в папке `figures/`;
-- тесты на отсутствие временных утечек
+- `at_least_one`: share of users with 1+ impressions;
+- `at_least_two`: share of users with 2+ impressions;
+- `at_least_three`: share of users with 3+ impressions.
 
-Датасет (`history.tsv`, `users.tsv`, `validate.tsv`, `validate_answers.tsv`) в репозиторий не включены. Их нужно скачать отдельно и перед запуском указать путь через `VK_ADS_DATA_DIR`.
+The final solution combines auction/session replay, temporal blending, and a regularized residual calibration layer. The best locked temporal holdout score is **9.29%**; lower is better.
 
-## Основные файлы
+---
 
-- `src/vk_ads_solution.py` — sessionization, past-only auction replay, temporal splits, агрегаты и индикаторы.
-- `select_strict_model.py` — выбор конфигурации только по кампаниям, завершённым до final holdout.
-- `evaluate_locked_holdout.py` — отдельная оценка зафиксированного final holdout.
-- `predict_future.py` — прогноз кампаний после конца доступной истории; файл ответов не читается.
-- `run_experiments.py` — дополнительные past-only и purged OOF diagnostics.
-- `run_boosting_baseline.py` — бустинг на агрегированных признаках как ML-baseline.
-- `run_segment_residual_calibration.py` — дополнительный leak-free эксперимент:
-  segment-aware residual calibration, uncertainty shrinkage и Ridge residual поверх replay.
-- `run_probabilistic_exposure_simulator.py` — user-level hazard simulator:
-  активность пользователя, площадки, hour-of-week, эмпирическая CPM win-curve и Poisson aggregation.
-- `run_hazard_feature_residual.py` — добавление simulator diagnostics как признаков
-  в регуляризованный residual Ridge поверх replay.
-- `run_selection_model_blend.py` — selection-only target blend уже выбранных
-  residual-моделей без доступа к final holdout.
-- `run_temporal_weighted_residual.py` — temporal-local residual Ridge:
-  recency-weighted обучение residual-слоя и отдельный подбор конфигураций для 1+/2+/3+.
-- `run_temporal_selection_blend.py` — selection-only blend с temporal-weighted
-  источниками; используется как ablation поверх финальной temporal-модели.
-- `run_advance_like_baseline.py` — AdVance-inspired neural multi-task baseline:
-  общий encoder и три residual-heads поверх replay-прогноза.
-- `VK_Ads_reach_forecasting_solution.ipynb` — выполненный notebook с проверкой model lock.
-- `VK_Ads_reach_forecasting_colab.ipynb` — самодостаточный notebook для Google Colab.
-- `tests/test_leak_free_pipeline.py` — автоматические проверки временных границ.
-- `docs/Сопроводительная записка НИР Сергеева АВ VK Ads расширенная.docx` — финальная сопроводительная записка.
-- `docs/НИР VK Ads презентация Сергеева АВ.pptx` — презентация по работе.
-- `figures/*.png` — EDA, сравнение моделей, абляции, predicted-vs-actual и PCA user representations.
-- `generate_project_figures.py` — воспроизводимая генерация всех графиков из данных и outputs.
-- `run_defense_diagnostics.py` — post-hoc диагностика финальной модели: сегменты, калибровка, target-level errors.
-- `reports/controversial_questions_and_answers.md` — спорные вопросы к защите и короткие ответы.
-- `reports/defense_diagnostics_log.md` — лог дополнительных diagnostics на locked final holdout.
-- `reports/segment_residual_experiment_log.md` — лог дополнительного residual-эксперимента.
-- `reports/probabilistic_exposure_experiment_log.md` — лог user-level simulator ablation.
-- `reports/hazard_feature_residual_log.md` — лог residual-модели с simulator features.
-- `reports/selection_model_blend_log.md` — лог финального target-wise selector-бленда.
-- `reports/temporal_weighted_residual_log.md` — лог temporal-local residual Ridge.
-- `reports/temporal_selection_blend_log.md` — лог selector-бленда с temporal sources.
-- `reports/temporal_refinement_v2_ablation.md` — диагностика слишком агрессивного temporal refinement.
-- `reports/advance_like_mlp_baseline_log.md` — лог нейросетевого baseline по мотивам AdVance.
+## Project Highlights
 
-## Строгий протокол
+| Component | Summary |
+|---|---|
+| Task | Forecast threshold reach: `P(N>=1)`, `P(N>=2)`, `P(N>=3)` for future ad campaigns |
+| Domain | Auction-based online advertising, VK Ads-like impression logs |
+| Final model | **Temporal-weighted target-wise Ridge residual** over decomposed replay |
+| Final score | **9.29%** on locked temporal holdout |
+| Main baseline | Monthly replay: **11.70%** |
+| Strong replay baseline | Base decomposed replay: **9.54%** |
+| ML baselines | Boosting with replay features: **10.94%**; AdVance-inspired MLP: **9.52%** |
+| Validation | Strict temporal split, past-only features, model lock, leakage tests |
 
-Validation делится полными группами `hour_start`:
+---
 
-| Зона | Назначение | Строк |
+## Why This Problem Matters
+
+Advertisers need to estimate campaign performance before launch: how many users will be reached, how often they will see the ad, and whether a chosen CPM is enough for the planned audience and placements.
+
+In an auction-based ad system, this is not a plain regression problem. Impressions depend on:
+
+- campaign CPM and competition for each ad opportunity;
+- available inventory over time;
+- publisher mix;
+- user activity and sessions;
+- frequency restrictions inside a user session.
+
+The practical value of this model is that it can be used for:
+
+- reach/frequency planning before campaign launch;
+- scenario analysis for different CPM values, publishers, and time windows;
+- budget and bidding decision support;
+- frequency control diagnostics;
+- a first layer for downstream click, conversion, and cost forecasting.
+
+---
+
+## Data
+
+Raw dataset files are not included in the repository. Place them locally and set `VK_ADS_DATA_DIR` before running the code.
+
+| File | Description | Size |
 |---|---|---:|
-| Development | ранняя проверка bias и устойчивости | 389 |
-| Calibration | диагностика лагов и весов | 121 |
-| Pretest | выбор итоговой конфигурации до test | 643 |
-| Final holdout | однократная итоговая оценка | 201 |
+| `users.tsv` | user attributes: sex, age, city | 27,769 users |
+| `history.tsv` | historical impressions: hour, CPM, publisher, user | 1,147,857 impressions |
+| `validate.tsv` | future campaign configurations | 1,008 campaigns |
+| `validate_answers.tsv` | ground-truth shares for 1+/2+/3+ impressions | 1,008 rows |
 
-Границы: `calibration_start=1107`, `test_start=1257`. В development и pretest допускаются только кампании, для которых соответственно выполнено `hour_end < calibration_start` и `hour_end < test_start`.
+Additional dataset facts:
 
-`select_strict_model.py` не оценивает final holdout. Итоговая конфигурация выбирается
-по `pretest_metric_percent`: это все кампании, чьи target-окна полностью завершены
-до `test_start`. Скрипт сохраняет:
+- historical logs cover 1,488 hours, approximately 62 days;
+- 25,536 users appear in historical impressions;
+- there are 21 publishers;
+- validation campaign audience size ranges from 300 to 2,500 users, with median 960.
 
-- `outputs/strict_model_lock.json`;
-- `outputs/strict_locked_predictions.tsv`;
-- SHA-256 прогноза;
-- таблицу кандидатов с calibration- и pretest-метриками.
+The public dataset contains only limited auction logs: user, hour, publisher, and winning CPM. It does not include losing bids, candidate ads, creatives, clicks, conversions, budgets, or a full auction graph. This is why the solution uses a replay-based approximation instead of a full production auction model.
 
-`evaluate_locked_holdout.py` проверяет SHA-256 и только после этого вычисляет final-метрику.
+---
 
-## Зафиксированная модель
+## Method Overview
 
-- monthly: одно прошлое окно с выравниванием по 31 дню;
-- daily: геометрическое среднее 8 прошлых окон;
-- weekly: геометрическое среднее до 5 прошлых окон;
-- веса monthly/daily/weekly: `0.05 / 0.40 / 0.55`;
-- дополнительный bias: отключён.
+The final model is a modular pipeline rather than a black-box end-to-end model.
 
-Каждое source-окно полностью заканчивается до forecast cutoff. Внутри окна моделируются CPM-аукцион, шестичасовые пользовательские сессии и Poisson-binomial агрегация `P(1+)`, `P(2+)`, `P(3+)`.
+1. **Campaign input**  
+   Reads CPM, time window, publishers, audience size, and target user IDs.
 
-## Метрики
+2. **Past-only history**  
+   Uses only historical impressions available before the forecast cutoff.
 
-| Этап | Метрика, % |
-|---|---:|
-| Calibration diagnostic | 8.03 |
-| Pretest selection | 8.17 |
-| **Locked final temporal holdout, 201 строка** | **9.54** |
+3. **Auction replay**  
+   Replays a future campaign on historical ad opportunities by comparing campaign CPM with historical winning CPM:
 
-Метрики выше относятся к базовой зафиксированной decomposed replay-модели.
-Итоговая enhanced-модель добавляет только leak-free residual-слой, выбранный
-на pre-final selection split. Лучший итоговый результат работы:
-`9.29%` на locked final temporal holdout (`9.289324%` без округления).
+   - `P(win)=1` if `cpm_campaign > cpm_history`;
+   - `P(win)=0.5` if `cpm_campaign = cpm_history`;
+   - `P(win)=0` if `cpm_campaign < cpm_history`.
 
-Бустинг на агрегированных признаках также проверялся как ML-baseline. В воспроизводимой
-версии используется `HistGradientBoostingRegressor` из sklearn: CatBoost/LightGBM можно
-подставить как аналог при наличии библиотек. На строгом final holdout бустинг оказался
-хуже decomposed replay: `10.94%` для варианта с replay-признаками и `30.89%` для
-варианта только со static/history features.
+4. **Sessionization**  
+   Applies the 6-hour session rule so repeated impressions inside one user session are not overcounted.
 
-Дополнительно проверен второй слой поверх replay: сегментная log-residual calibration
-и регуляризованный Ridge residual с shrinkage. Конфигурации выбираются без доступа к
-final holdout, затем выбранный слой refit-ится на pretest-строках, завершенных до
-`test_start`.
+5. **User-level frequency aggregation**  
+   Estimates `P(N>=1)`, `P(N>=2)`, and `P(N>=3)` for each user.
 
-| Дополнительная модель | Selection, % | Final holdout, % |
+6. **Audience aggregation**  
+   Averages user-level probabilities over the campaign audience.
+
+7. **Temporal blend**  
+   Combines monthly, daily, and weekly replay components in log-space.
+
+8. **Residual calibration**  
+   Applies target-wise Ridge residual correction with recency weighting and bounded correction.
+
+<p align="center">
+  <img src="figures/architecture_diagrams/07_ours_final_temporal_weighted_ridge.png" alt="Final model architecture" width="950">
+</p>
+
+---
+
+## Metric
+
+The official metric is a smoothed mean log-ratio error over all validation campaigns and all three targets:
+
+$$
+Score =
+100\% \cdot
+\left(
+\exp\left(
+\frac{1}{3n}
+\sum_{i=1}^{n}
+\sum_{j=1}^{3}
+\left|
+\log
+\frac{\hat y_{ij}+\varepsilon}{y_{ij}+\varepsilon}
+\right|
+\right)-1
+\right),
+\quad \varepsilon=0.005.
+$$
+
+Lower is better.
+
+This metric is well aligned with the task because it evaluates relative error for small probability-like shares and jointly accounts for all three frequency thresholds.
+
+---
+
+## Results
+
+The final model improves both simple historical baselines and stronger ML baselines.
+
+| Model | Final holdout ↓ | Improvement vs monthly ↑ |
 |---|---:|---:|
-| Base decomposed replay | 7.96 | 9.54 |
-| Segment residual calibration + shrinkage | 7.96 | 9.51 |
-| Ridge residual shrinkage | 7.94 | 9.47 |
-| Target-wise Ridge residual shrinkage | target-wise selection | 9.46 |
-| Probabilistic exposure simulator blend | 7.96 | 9.54 |
-| Hazard-feature Ridge residual | 7.95 | 9.47 |
-| Selection-only target blend | 7.91 | 9.46 |
-| Temporal-weighted Ridge residual | 7.93 | 9.47 |
-| **Temporal-weighted target-wise Ridge residual** | target-wise selection | **9.29** |
-| Temporal selection-only blend | 7.85 | 9.29 |
-| Over-aggressive temporal refinement v2 | diagnostic only | 9.30 |
+| Monthly baseline | 11.70% | 0.0% |
+| Boosting + replay features | 10.94% | +6.5% |
+| Base decomposed replay | 9.54% | +18.5% |
+| Target-wise Ridge residual | 9.46% | +19.1% |
+| **Temporal-weighted target-wise Ridge residual** | **9.29%** | **+20.6%** |
+| Static/history boosting | 30.89% | -164.0% |
 
-Ключевое улучшение дал temporal-local residual layer: строки, ближайшие к
-прогнозному cutoff, получают больший вес при обучении residual-коррекции.
-Это отражает временной дрейф рекламного инвентаря и активности пользователей.
-Для `1+`, `2+`, `3+` конфигурации выбираются отдельно на pre-final selection
-split, затем refit-ятся на всех pretest-строках, завершенных до `test_start`.
+<p align="center">
+  <img src="figures/04_model_comparison.png" alt="Model comparison" width="800">
+</p>
 
-Unrounded final для лучшей модели: `9.289324%`. Дополнительный temporal
-selection blend снизил selection до `7.853684%`, но на final дал `9.289694%`,
-то есть не улучшил raw holdout относительно самой temporal target-wise модели.
-Более агрессивный refinement с `half_life=24h` и высокой correction ухудшил
-final до `9.30%`, поэтому оставлен как диагностический ablation против overfit.
+The final predictions are also close to average target values on the locked final holdout:
 
-Отдельно проверенный user-level simulator как самостоятельный прогноз оказался
-слишком грубым: даже малая примесь hazard-прогноза ухудшала selection-метрику,
-поэтому в финальной схеме он используется только как слабый диагностический
-feature block, а не как основная модель.
+| Target | Actual | Predicted | Relative difference |
+|---|---:|---:|---:|
+| 1+ | 0.0653 | 0.0677 | +3.7% |
+| 2+ | 0.0258 | 0.0263 | +1.9% |
+| 3+ | 0.0138 | 0.0134 | -2.9% |
 
-Для сравнения с нейросетевым индустриальным стилем также реализован
-AdVance-inspired multi-task MLP residual baseline. Это не воспроизведение
-AdVance: в открытом VK Ads датасете нет click sequence, creative/item ids,
-full RTB auction graph, fatigue vector и других входов, необходимых статье.
-Честный аналог на доступных данных — общий encoder по campaign/replay/user
-признакам и три target-specific residual heads. На locked final holdout он
-получил `9.52%`: лучше base replay `9.54%`, но хуже регуляризованного
-temporal-weighted target-wise Ridge residual `9.29%`.
+<p align="center">
+  <img src="figures/06_predicted_vs_actual_final_holdout.png" alt="Predicted vs actual on final holdout" width="850">
+</p>
+
+---
+
+## Experiment Summary
+
+The project includes several families of experiments:
+
+| Experiment family | Purpose | Best / representative result |
+|---|---|---:|
+| Monthly replay | simple historical baseline | 11.70% final |
+| Daily / weekly / geometric replay | past-only temporal replay variants | 9.54% final for base decomposed replay |
+| Boosting baselines | ML baseline over aggregate and replay features | 10.94% final with replay features |
+| Segment residual calibration | segment-aware correction over replay | 9.51% final |
+| Ridge residual | regularized residual correction | 9.47% final |
+| Target-wise Ridge residual | separate residual heads for 1+/2+/3+ | 9.46% final |
+| Probabilistic exposure simulator | user-level activity and hazard simulation | 9.54% final |
+| Hazard-feature residual | simulator diagnostics as residual features | 9.47% final |
+| AdVance-inspired MLP | neural multi-task residual baseline | 9.52% final |
+| Temporal-weighted residual | recency-weighted residual calibration | 9.47% final |
+| **Temporal-weighted target-wise residual** | final model | **9.29% final** |
+
+Full hyperparameter and experiment table:
+
+- [`reports/experiments_hyperparameters_table.md`](reports/experiments_hyperparameters_table.md)
+- [`reports/experiments_hyperparameters_table.csv`](reports/experiments_hyperparameters_table.csv)
+
+---
+
+## Leakage Control
+
+The most important engineering constraint is avoiding future information leakage.
+
+The validation protocol uses complete temporal groups:
+
+| Zone | Purpose | Rows |
+|---|---|---:|
+| Development | early diagnostics and bias checks | 389 |
+| Calibration | lag and weight diagnostics | 121 |
+| Pretest | configuration selection before final holdout | 643 |
+| Final holdout | locked future evaluation | 201 |
+
+Leakage controls:
+
+- all replay source windows end before the forecast cutoff;
+- history is cut before validation in test-like evaluation mode;
+- residual models are selected on pre-final temporal splits;
+- final holdout predictions are locked and checked via SHA-256;
+- automated tests validate temporal boundaries and data usage assumptions.
+
+Run leakage tests:
+
+```bash
+pytest -q tests/test_leak_free_pipeline.py
+```
+
+Expected result:
+
+```text
+7 passed
+```
+
+---
+
+## Repository Structure
+
+```text
+.
+├── src/
+│   └── vk_ads_solution.py              # core replay, sessions, features, metric
+├── tests/
+│   └── test_leak_free_pipeline.py      # leakage and temporal-boundary tests
+├── figures/                            # EDA, diagnostics, model comparison plots
+├── figures/architecture_diagrams/      # model and literature architecture diagrams
+├── outputs/                            # predictions, metrics, model lock, diagnostics
+├── reports/                            # experiment logs, QA, hyperparameter tables
+├── docs/                               # project report and presentation files
+├── select_strict_model.py              # strict model selection without final leakage
+├── evaluate_locked_holdout.py          # locked final holdout evaluation
+├── predict_future.py                   # inference for future campaigns
+├── run_experiments.py                  # past-only and OOF diagnostics
+├── run_boosting_baseline.py            # boosting baselines
+├── run_segment_residual_calibration.py # segment/Ridge residual experiments
+├── run_probabilistic_exposure_simulator.py
+├── run_hazard_feature_residual.py
+├── run_advance_like_baseline.py
+├── run_temporal_weighted_residual.py   # final temporal residual family
+└── VK_Ads_reach_forecasting_colab.ipynb
+```
+
+---
+
+## Installation
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Set the path to the raw dataset:
+
+```bash
+export VK_ADS_DATA_DIR="/path/to/vk_ads_data"
+```
+
+The directory should contain:
+
+```text
+users.tsv
+history.tsv
+validate.tsv
+validate_answers.tsv
+```
+
+---
+
+## Reproducing the Main Pipeline
+
+### 1. Select and lock the strict base model
+
+```bash
+python select_strict_model.py
+```
+
+This produces:
+
+- `outputs/strict_model_lock.json`
+- `outputs/strict_locked_predictions.tsv`
+- `outputs/strict_calibration_selection.csv`
+- `outputs/strict_final_holdout_metrics.csv`
+
+### 2. Evaluate the locked holdout
+
+```bash
+python evaluate_locked_holdout.py
+```
+
+### 3. Run the final residual model family
+
+```bash
+python run_temporal_weighted_residual.py
+```
+
+### 4. Run diagnostics and figures
+
+```bash
+python run_defense_diagnostics.py
+python generate_project_figures.py
+python generate_architecture_diagrams.py
+```
+
+### 5. Run additional baselines
+
+```bash
+python run_boosting_baseline.py
+python run_advance_like_baseline.py
+python run_probabilistic_exposure_simulator.py
+python run_hazard_feature_residual.py
+python run_selection_model_blend.py
+python run_temporal_selection_blend.py
+```
+
+---
+
+## Inference on Future Campaigns
+
+Use:
+
+```bash
+python predict_future.py future_campaigns.tsv predictions.tsv
+```
+
+Input file must follow the same schema as `validate.tsv`:
+
+```text
+cpm
+hour_start
+hour_end
+publishers
+audience_size
+user_ids
+```
+
+For strict future inference, all `hour_start` values should be greater than the maximum `hour` in `history.tsv`.
+
+---
+
+## Key Outputs
+
+| File | Description |
+|---|---|
+| `predictions.tsv` | final predictions for validation-like campaigns |
+| `prediction_diagnostics.csv` | per-campaign diagnostics |
+| `outputs/temporal_weighted_residual_metrics.csv` | final residual-family metrics |
+| `outputs/boosting_baseline_metrics.csv` | boosting baseline metrics |
+| `outputs/advance_like_mlp_metrics.csv` | neural baseline metrics |
+| `outputs/defense_model_metrics.csv` | compact model comparison |
+| `reports/experiments_hyperparameters_table.md` | experiment and hyperparameter summary |
+
+---
+
+## Relationship to Prior Work
+
+The project is related to campaign performance forecasting, reach/frequency modeling, RTB bid landscape forecasting, and auction simulation.
+
+Important distinction: many industry papers use richer production logs: click sequences, conversion labels, creative IDs, candidate ads, losing bids, full auction graphs, and user-interest histories. The public VK Ads dataset is intentionally limited. Therefore, this project does not claim to reproduce full industrial systems such as AdVance; instead, it adapts their high-level ideas to a reproducible public-data setting.
+
+Implemented comparison points include:
+
+- decomposed replay baseline;
+- boosting baselines;
+- AdVance-inspired multi-task MLP residual baseline;
+- probabilistic exposure simulator;
+- segment and Ridge residual calibration;
+- temporal-weighted target-wise residual correction.
+
+---
+
+## Limitations
+
+- No losing bids or complete auction graph.
+- No ad IDs, creative IDs, text, images, or categories.
+- No clicks, conversions, revenue, budget, or spend.
+- No online A/B test; evaluation is offline temporal holdout only.
+- Final holdout controls direct data leakage, but a completely hidden external test would be needed to eliminate all researcher-overfit concerns.
+
+---
+
+## Next Steps
+
+Potential extensions:
+
+- add creative/ad embeddings if ad metadata becomes available;
+- model clicks and conversions in a multi-task setting;
+- calibrate each frequency threshold with more temporal folds;
+- evaluate on a larger hidden temporal test set;
+- integrate the reach/frequency forecast into a bid or budget optimization loop.
+
+---
+
+## License and Data
+
+The repository contains code, diagnostics, and generated figures. Raw dataset files are not included and should be obtained from the original data source.
